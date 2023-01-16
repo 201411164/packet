@@ -171,11 +171,12 @@ def traffic_to_website(keyword, targetMid, foundCount, hitCount):
                                     #linkList 중 하나를 랜덤하게 선택
                                     link = linkList[random.randrange(0, len(linkList))]
                                     if link.is_displayed():
+                                        # 화면에 보이면 클릭
                                         link.click()
                                         time.sleep(random.randrange(1, 5))
-                                        print('총 유입건수 : ' + str(foundCount), '현재 유효타수 : ' + str(hitCount))
-                                        driver.quit()
-                                        return foundCount, hitCount
+                                    print('총 유입건수 : ' + str(foundCount), '현재 유효타수 : ' + str(hitCount))
+                                    driver.quit()
+                                    return foundCount, hitCount
                                 except Exception as e:
                                     print('총 유입건수 : ' + str(foundCount), '현재 유효타수 : ' + str(hitCount))
                                     driver.quit()

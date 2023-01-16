@@ -14,10 +14,11 @@ from typing import Dict
 import string
 import random
 from selenium.webdriver import ActionChains
-import uiautomator2 as u2
+# import uiautomator2 as u2
 from ppadb.client import Client as AdbClient
 from requests import get
 import subprocess
+import multiprocessing as mp
 
 # header = Headers(
 #             headers=False
@@ -47,7 +48,7 @@ def init_device():
     devices = client.devices()
     return devices
 
-def traffic_to_website(keyword, targetMid):
+def traffic_to_website(keyword, targetMid, foundCount, hitCount):
     try:
         # process = CrawlerProcess()
         # crawler = process.create_crawler(QuotesSpider)
@@ -81,10 +82,16 @@ def traffic_to_website(keyword, targetMid):
             print('device 출력하기')
 
         ip_change(realDevice)
-        # ip_check()
+
+        time.sleep(3)
+        ip_check()
 
         print('감지되지 않는 크롬 설정중.....잠시만 기다려주세요')
         driver = uc.Chrome(version_main=108)
+        # driver의 timeout을 6초로 설정
+        driver.set_page_load_timeout(10)
+        # driver의 implicit wait을 10초로 설정
+        driver.implicitly_wait(10)
         print('크롬 실행 완료')
         driver.get('https://shopping.naver.com/home')
         # input tag이며 title attribute가 '검색어 입력'인 요소를 찾아 클릭
@@ -124,6 +131,7 @@ def traffic_to_website(keyword, targetMid):
             cnt = 0
             for elem in elemList:
                 cnt = cnt + 1
+                print('현재 페이지 : ', curPage, '현재 유입수 : ', foundCount , '현재 유효타수 : ', hitCount)
                 print('elem의 길이 :' + str(len(elemList)))
                 print('현재 elem : ' + str(cnt))
                 try:
@@ -140,28 +148,95 @@ def traffic_to_website(keyword, targetMid):
                     if MidValue == targetMid:
                         # 만약 같다면 해당 elem 클릭
                         print('발견')
-                        elem.click()
-                        print('현재 페이지 : ' + str(curPage))
-                        isFound = True
-                        print('발견 완료 + 3~7초동안 체류하기')
-                        time.sleep(random.randrange(3, 7))
-                        driver.quit()
-                        break
+                        foundCount = foundCount + 1
+                        # 90% 확률로 클릭하기
+                        if random.randrange(0, 10) < 9:
+                            hitCount = hitCount + 1
+                            elem.click()
+                            print('발견 완료 + 3~7초동안 체류하기')
+                            # 새로 열린 창으로 포커스 이동
+                            driver.switch_to.window(driver.window_handles[-1])
+                            # 페이지 맨 아래로 천천히 스크롤
+                            time.sleep(random.randrange(3, 6))
+                            driver.execute_script("window.scrollBy(0, 300);")
+                            time.sleep(random.randrange(1, 6))
+                            driver.execute_script("window.scrollBy(0, 500);")
+                            if random.randrange(0, 10) < 6:
+                                time.sleep(random.randrange(2, 6))
+                                driver.execute_script("window.scrollBy(0, -300);")
+                                time.sleep(random.randrange(1, 6))
+                                # 화면에 보이는 링크 아무거나 클릭하기
+                                try:
+                                    linkList = driver.find_elements(By.TAG_NAME, 'a')
+                                    #linkList 중 하나를 랜덤하게 선택
+                                    link = linkList[random.randrange(0, len(linkList))]
+                                    if link.is_displayed():
+                                        link.click()
+                                        time.sleep(random.randrange(1, 5))
+                                        print('총 유입건수 : ' + str(foundCount), '현재 유효타수 : ' + str(hitCount))
+                                        driver.quit()
+                                        return foundCount, hitCount
+                                except Exception as e:
+                                    print('총 유입건수 : ' + str(foundCount), '현재 유효타수 : ' + str(hitCount))
+                                    driver.quit()
+                                    return foundCount, hitCount
+                            else:
+                                print('체류 완료'+str(hitCount))
+                                driver.quit()
+                                print('총 유입건수 : ' + str(foundCount), '현재 유효타수 : ' + str(hitCount))
+                                return foundCount, hitCount
+                        else:
+                            print('클릭하지 않음')
+                            print('헛방 날리기')
+                            # 500만큼 아래로 스크롤
+                            driver.execute_script("window.scrollBy(0, 500);")
+                            driver.quit()
+                            isFound = True
+                            print('총 유입건수 : ' + str(foundCount), '현재 유효타수 : ' + str(hitCount))
+                            return foundCount, hitCount
+
+
+
     except Exception as e:
         print(e)
+        # 만약 driver가 있다면 driver.quit 실행
+        if driver:
+            driver.quit()
+        return foundCount, hitCount
+
+
+
+def decimaltoAssembly(number):
+    # 10진수를 assembly code 로 변환
+    # 10진수를 16진수로 변환
+    hexNumber = hex(number)
+    print(hexNumber)
+
+# return 60000000을 hex로 변환
+
 
 
 
 if __name__ == '__main__':
+
+
     cnt = 1
-    while True:
+    foundCount, hitCount = 0, 0
+    while hitCount < 120:
         try:
-            print(str(cnt)+'번쨰 타수')
-            traffic_to_website('다다있어 청바지', '84227623335')
+
+            print(str(cnt)+'번째 타수 작업')
+            p = mp.Process(target=traffic_to_website, args=('다다있어 청바지', '84227623335', foundCount, hitCount))
+            # process의 결과로 foundCount, hitCount를 받는다.
+            p.start()
+            p.join()
             cnt = cnt + 1
         except Exception as e:
             print(e)
             pass
+
+    print('총 유입건수 : ' + str(foundCount), '현재 유효타수 : ' + str(hitCount))
+    print('프로그램을 종료합니다.')
 
 
 
